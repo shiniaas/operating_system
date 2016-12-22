@@ -1,0 +1,13 @@
+#include <stdio.h>
+int main(void)
+{
+	char a;
+	FILE* f;
+	FILE* f1;
+	f = fopen("read.txt", "r");
+	while(fscanf(f, "%c", &a) == 1)
+	{
+		putchar(a);
+	}
+	return 0;
+}

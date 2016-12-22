@@ -1,0 +1,75 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/sem.h>
+#include <sys/shm.h>
+#include <error.h>
+#include <signal.h>
+
+#define MYKEY 6666
+#define SHARED_MEMORY_SIZE 10
+char text[SHARED_MEMORY_SIZE];
+int semid;
+//0:in 1:out 2:mutex
+int a = 0;
+FILE* fr, *fw;
+int position_in = 0;
+int position_out = 0;
+char* shm = NULL;
+int shmid;
+
+void P(int semid, int index)
+{
+	struct sembuf sem;
+	sem.sem_num = index;
+	sem.sem_op = -1;
+	sem.sem_flg = 0;
+	semop(semid, &sem, 1);
+	return;
+}
+
+void V(int semid, int index)
+{
+	struct sembuf sem;
+	sem.sem_num = index;
+	sem.sem_op = 1;
+	sem.sem_flg = 0;
+	semop(semid, &sem, 1);
+	return;
+}
+int main(void)
+{
+	shmid = shmget((key_t)1234, sizeof(text), 0666);
+	if(shmid == -1)
+    {  
+        printf("shmget failed\n");  
+        exit(-1);  
+    }
+	shm = (char*)shmat(shmid,NULL,SHM_R|SHM_W);
+	shm[0] = 0;
+	semid = semget(MYKEY, 3, 0666);
+	if(semid == -1)
+	{
+		printf("semget error");
+		exit(-1);
+	}	
+	fw = fopen("write.txt", "w");
+	if(fw == NULL)
+	{
+		printf("open write.txt error");
+		exit(-1);
+	}
+	while(1)
+	{
+		P(semid, 1);
+		P(semid, 2);
+		printf("read\n");
+		fprintf(fw, "%c", shm[position_out]);
+		position_out = (position_out+1)%SHARED_MEMORY_SIZE;
+		V(semid, 2);
+		V(semid, 0);
+	}
+}
